@@ -1,6 +1,8 @@
 import Foundation
 
 public enum CatalogSource: String, CaseIterable, Codable, Sendable, Identifiable {
+    /// The official collection published with LiveDesk (original, CC0).
+    case official
     case pexels
     case pixabay
     case custom
@@ -9,20 +11,26 @@ public enum CatalogSource: String, CaseIterable, Codable, Sendable, Identifiable
 
     public var displayName: String {
         switch self {
+        case .official: return "LiveDesk"
         case .pexels: return "Pexels"
         case .pixabay: return "Pixabay"
         case .custom: return "Il mio catalogo"
         }
     }
 
-    public var requiresKey: Bool { self != .custom }
+    public static let officialCatalogURL = URL(string: "https://raw.githubusercontent.com/fladnaG86/LiveDesk/main/catalog/catalog.json")!
+
+    public var requiresKey: Bool { self == .pexels || self == .pixabay }
+
+    /// Sources backed by a catalog.json file.
+    public var isCatalogFile: Bool { self == .official || self == .custom }
 
     /// Where to get a free API key.
     public var keySignupURL: URL? {
         switch self {
         case .pexels: return URL(string: "https://www.pexels.com/api/")
         case .pixabay: return URL(string: "https://pixabay.com/api/docs/")
-        case .custom: return nil
+        case .official, .custom: return nil
         }
     }
 
@@ -30,6 +38,7 @@ public enum CatalogSource: String, CaseIterable, Codable, Sendable, Identifiable
         switch self {
         case .pexels: return "Pexels License"
         case .pixabay: return "Pixabay Content License"
+        case .official: return "CC0"
         case .custom: return ""
         }
     }
@@ -242,12 +251,12 @@ public enum CatalogParsers {
     }
 
     /// Items with a non-https video are skipped. Relative URLs resolve against the catalog URL.
-    public static func custom(_ data: Data, base: URL) throws -> [CatalogItem] {
+    public static func custom(_ data: Data, base: URL, source: CatalogSource = .custom) throws -> [CatalogItem] {
         guard let catalog = try? JSONDecoder().decode(CustomCatalog.self, from: data) else { throw CatalogError.badResponse }
         return catalog.items.compactMap { item in
             guard let video = secureURL(item.video, relativeTo: base) else { return nil }
             return CatalogItem(
-                id: "custom:\(item.id ?? video.absoluteString)", source: .custom,
+                id: "\(source.rawValue):\(item.id ?? video.absoluteString)", source: source,
                 title: item.title, author: item.author,
                 thumbnailURL: secureURL(item.thumbnail, relativeTo: base),
                 previewURL: secureURL(item.preview, relativeTo: base),
@@ -305,6 +314,10 @@ public final class CatalogClient: Sendable {
                 URLQueryItem(name: "order", value: "popular"),
             ]
             return URLRequest(url: c.url!)
+        case .official:
+            var r = URLRequest(url: CatalogSource.officialCatalogURL)
+            r.cachePolicy = .reloadRevalidatingCacheData
+            return r
         case .custom:
             guard let customURL else { throw CatalogError.missingCatalogURL }
             guard customURL.scheme?.lowercased() == "https" else { throw CatalogError.insecureURL(customURL.absoluteString) }
@@ -315,7 +328,7 @@ public final class CatalogClient: Sendable {
     }
 
     public func fetch(source: CatalogSource, query: String?, page: Int, apiKey: String?, customURL: URL?) async throws -> [CatalogItem] {
-        if source == .custom && page > 1 { return [] } // a custom catalog is one file
+        if source.isCatalogFile && page > 1 { return [] } // a catalog is one file
         var request = try Self.request(source: source, query: query, page: page, apiKey: apiKey, customURL: customURL)
         request.timeoutInterval = 20
         let (data, response) = try await session.data(for: request)
@@ -328,6 +341,8 @@ public final class CatalogClient: Sendable {
         switch source {
         case .pexels: return try CatalogParsers.pexels(data)
         case .pixabay: return try CatalogParsers.pixabay(data)
+        case .official:
+            return CatalogParsers.filter(try CatalogParsers.custom(data, base: CatalogSource.officialCatalogURL, source: .official), query: query)
         case .custom: return CatalogParsers.filter(try CatalogParsers.custom(data, base: customURL!), query: query)
         }
     }

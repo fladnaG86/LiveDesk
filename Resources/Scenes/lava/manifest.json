@@ -1,0 +1,12 @@
+{
+  "id": "1C17FBC6-A20E-5C77-A005-C8AE65B2739A",
+  "name": "Lava",
+  "passes": [
+    {
+      "source": "lava.metal",
+      "function": "lava"
+    }
+  ],
+  "usesAudio": false,
+  "usesMouse": false
+}

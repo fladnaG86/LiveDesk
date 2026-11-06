@@ -1,3 +1,4 @@
+import AVFoundation
 import CoreGraphics
 import Foundation
 import Metal
@@ -78,7 +79,7 @@ struct LibraryStoreTests {
 
     @Test func builtInScenesLoadWithStableIDs() {
         let store = LibraryStore(root: makeTempDir(), builtInScenesRoot: repoScenes)
-        #expect(store.builtIns.count == 3)
+        #expect(store.builtIns.count == 12)
         #expect(store.builtIns.allSatisfy { $0.kind == .scene && $0.isBuiltIn })
         let again = LibraryStore(root: makeTempDir(), builtInScenesRoot: repoScenes)
         #expect(store.builtIns.map(\.id) == again.builtIns.map(\.id))
@@ -162,7 +163,7 @@ struct SceneManifestTests {
     @Test func builtInScenesCompile() throws {
         let device = try #require(MTLCreateSystemDefaultDevice())
         let names = try FileManager.default.contentsOfDirectory(atPath: repoScenes.path).filter { !$0.hasPrefix(".") }
-        #expect(names.count == 3)
+        #expect(names.count == 12)
         for name in names {
             let folder = repoScenes.appendingPathComponent(name)
             let manifest = try SceneManifest.load(from: folder)
@@ -216,5 +217,34 @@ struct OcclusionTests {
     @Test func windowOnOtherScreenDoesNotCover() {
         let w = WindowRect(layer: 0, bounds: CGRect(x: 1000, y: 0, width: 1000, height: 800), alpha: 1, ownerPID: 42)
         #expect(!OcclusionDetector.isCovered(screenBounds: screen, windows: [w], ownPID: 1))
+    }
+}
+
+struct OfflineRenderTests {
+    @Test func blendWeights() {
+        var o = OfflineRenderOptions()
+        o.fps = 10; o.duration = 4; o.crossfade = 1
+        #expect(o.frameCount == 40)
+        #expect(o.crossfadeFrames == 10)
+        #expect(o.blendWeight(frame: 0) == 0)
+        #expect(o.blendWeight(frame: 5) == 0.5)
+        #expect(o.blendWeight(frame: 10) == 1)
+        o.crossfade = 100
+        #expect(o.crossfadeFrames == 20) // capped at half
+    }
+
+    @Test func rendersSmallLoopingMovie() async throws {
+        var o = OfflineRenderOptions()
+        o.width = 128; o.height = 72; o.fps = 10; o.duration = 2; o.crossfade = 0.5; o.bitrate = 500_000
+        let out = makeTempDir().appendingPathComponent("aurora.mov")
+        var last = 0.0
+        try OfflineSceneRenderer.render(folder: repoScenes.appendingPathComponent("aurora"), to: out, options: o) { last = $0 }
+        #expect(last == 1)
+        let asset = AVURLAsset(url: out)
+        let duration = try await asset.load(.duration).seconds
+        #expect(abs(duration - 2) < 0.15)
+        let track = try #require(try await asset.loadTracks(withMediaType: .video).first)
+        let size = try await track.load(.naturalSize)
+        #expect(size == CGSize(width: 128, height: 72))
     }
 }

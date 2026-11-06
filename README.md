@@ -16,8 +16,11 @@ Live wallpaper app for macOS (26+), written from scratch in Swift / SwiftUI / Me
   `~/Library/Application Support/LiveDesk/AerialBackups/`. Turning the option off removes everything LiveDesk added.
 - Menu bar control, library window with drag & drop, rotation timer, launch at login.
 
-- **Discover**: browse, preview and download free-licensed videos from Pexels or Pixabay (free API keys,
-  stored in the Keychain) or from your own `catalog.json`. Author, source and license are kept with each download.
+- **Discover**: browse, preview and download wallpapers. Sources:
+  - **LiveDesk Collection** (default, no setup): 10 original 4K looping wallpapers rendered from LiveDesk's own scenes, CC0.
+  - **Pexels / Pixabay**: free-licensed videos (free API keys, stored in the Keychain).
+  - **Your own `catalog.json`** at any https URL.
+  Author, source and license are kept with each download.
 
 ## Install
 
@@ -63,7 +66,22 @@ fragment float4 myPass(LDVertexOut in [[stage_in]],
 - `passes[k]`: latest output of pass k — this frame for earlier passes, previous frame for itself and later ones (feedback).
 - `u.timeInfo` (seconds, frame, dt), `u.resolution` (px, 1/px), `u.mouse` (xy 0...1, z = on this screen), `u.audio` (bass, mid, treble, level).
 
-Built-in scenes live in `Resources/Scenes` (Aurora, Pulse, Ink).
+Built-in scenes live in `Resources/Scenes`: Aurora, Pulse (audio), Ink (feedback), Nebula, Liquid, Synthwave,
+Star Warp, Lava, Silk, Bokeh, Ocean Sunset, Topo.
+
+## LiveDesk Collection
+
+The collection is rendered from the built-in scenes by `livedesk-render`, an offline renderer that turns any
+stateless scene into a seamless HEVC loop (the tail is crossfaded into the start):
+
+```sh
+build/Build/Products/Debug/livedesk-render Resources/Scenes/nebula nebula.mov --width 3840 --height 2160 --duration 20
+scripts/build-collection.sh          # renders all, makes previews/thumbnails, writes catalog/catalog.json
+gh release create collection-1 dist/collection/* --title "LiveDesk Collection 1"
+```
+
+Videos, previews and thumbnails are hosted as release assets; `catalog/catalog.json` in this repo points to them.
+All collection content is original and released under CC0.
 
 ## Layout
 

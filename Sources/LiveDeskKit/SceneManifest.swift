@@ -129,5 +129,15 @@ public enum SceneShaderHeader {
         return float4(src.sample(smp, ld_tc(in.uv)).rgb, 1.0);
     }
 
+    // Offline loop rendering: mix(b, a, w).
+    fragment float4 ld_blend(LDVertexOut in [[stage_in]],
+                             texture2d<float> a [[texture(0)]],
+                             texture2d<float> b [[texture(1)]],
+                             constant float& w [[buffer(0)]],
+                             sampler smp [[sampler(0)]]) {
+        float2 tc = ld_tc(in.uv);
+        return float4(mix(b.sample(smp, tc).rgb, a.sample(smp, tc).rgb, w), 1.0);
+    }
+
     """
 }

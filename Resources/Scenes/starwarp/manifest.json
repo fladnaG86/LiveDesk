@@ -1,0 +1,12 @@
+{
+  "id": "AD8DFA81-CAB9-5C11-97FF-9D266B034447",
+  "name": "Star Warp",
+  "passes": [
+    {
+      "source": "starwarp.metal",
+      "function": "starwarp"
+    }
+  ],
+  "usesAudio": false,
+  "usesMouse": false
+}

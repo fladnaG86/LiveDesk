@@ -131,6 +131,22 @@ struct CatalogRequestTests {
         #expect(q.first { $0.name == "safesearch" }?.value == "true")
     }
 
+    @Test func officialNeedsNothing() throws {
+        let r = try CatalogClient.request(source: .official, query: "x", page: 1, apiKey: nil, customURL: nil)
+        #expect(r.url == CatalogSource.officialCatalogURL)
+        #expect(!CatalogSource.official.requiresKey)
+        #expect(CatalogSource.official.isCatalogFile)
+    }
+
+    @Test func officialCatalogInRepoParses() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent().appendingPathComponent("catalog/catalog.json")
+        let items = try CatalogParsers.custom(Data(contentsOf: url), base: CatalogSource.officialCatalogURL, source: .official)
+        #expect(items.count == 10)
+        #expect(items.allSatisfy { $0.license == "CC0" && $0.width == 3840 && $0.id.hasPrefix("official:") })
+        #expect(items.allSatisfy { $0.downloadURL.host == "github.com" && $0.previewURL != nil && $0.thumbnailURL != nil })
+    }
+
     @Test func customRequiresHTTPS() throws {
         #expect(throws: CatalogError.missingCatalogURL) {
             try CatalogClient.request(source: .custom, query: nil, page: 1, apiKey: nil, customURL: nil)

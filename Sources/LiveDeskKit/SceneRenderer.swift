@@ -139,7 +139,6 @@ public final class SceneRenderer: NSObject, MTKViewDelegate {
 
     public func draw(in view: MTKView) {
         guard let commandBuffer = queue.makeCommandBuffer() else { return }
-        ensureTargets(for: view.drawableSize, commandBuffer: commandBuffer)
 
         let now = CACurrentMediaTime()
         let dt = lastTimestamp.map { min(0.1, now - $0) } ?? 0
@@ -147,15 +146,39 @@ public final class SceneRenderer: NSObject, MTKViewDelegate {
         time += dt * speed
         frame += 1
 
+        let a = audioProvider()
+        guard let output = encodePasses(commandBuffer, drawableSize: view.drawableSize, time: time, dt: dt,
+                                        frameIndex: frame, mouse: Self.mouse(for: view),
+                                        audio: SIMD4(a.bass, a.mid, a.treble, a.level)) else { return }
+
+        if let rp = view.currentRenderPassDescriptor, let drawable = view.currentDrawable,
+           let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: rp) {
+            encoder.setRenderPipelineState(presentPipeline)
+            encoder.setFragmentTexture(output, index: 0)
+            encoder.setFragmentSamplerState(sampler, index: 0)
+            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+            encoder.endEncoding()
+            commandBuffer.present(drawable)
+        }
+        commandBuffer.commit()
+    }
+
+    public var metalDevice: MTLDevice { device }
+
+    public func makeCommandBuffer() -> MTLCommandBuffer? { queue.makeCommandBuffer() }
+
+    /// Encodes every pass for one frame at an explicit time.
+    /// - Returns: the texture holding the last pass output (valid until the next call).
+    @discardableResult
+    public func encodePasses(_ commandBuffer: MTLCommandBuffer, drawableSize: CGSize, time: Double, dt: Double,
+                             frameIndex: Int, mouse: SIMD4<Float> = .zero, audio: SIMD4<Float> = .zero) -> MTLTexture? {
+        ensureTargets(for: drawableSize, commandBuffer: commandBuffer)
         var uniforms = SceneUniforms(
-            timeInfo: SIMD4(Float(time), Float(frame), Float(dt), 0),
+            timeInfo: SIMD4(Float(time), Float(frameIndex), Float(dt), 0),
             resolution: SIMD4(Float(targetSize.width), Float(targetSize.height),
                               Float(1 / targetSize.width), Float(1 / targetSize.height)),
-            mouse: Self.mouse(for: view),
-            audio: {
-                let a = audioProvider()
-                return SIMD4(a.bass, a.mid, a.treble, a.level)
-            }()
+            mouse: mouse,
+            audio: audio
         )
 
         for (index, pipeline) in pipelines.enumerated() {
@@ -176,18 +199,8 @@ public final class SceneRenderer: NSObject, MTKViewDelegate {
             encoder.endEncoding()
             current[index] = 1 - current[index]
         }
-
-        if let rp = view.currentRenderPassDescriptor, let drawable = view.currentDrawable,
-           let last = targets.indices.last,
-           let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: rp) {
-            encoder.setRenderPipelineState(presentPipeline)
-            encoder.setFragmentTexture(targets[last][current[last]], index: 0)
-            encoder.setFragmentSamplerState(sampler, index: 0)
-            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
-            encoder.endEncoding()
-            commandBuffer.present(drawable)
-        }
-        commandBuffer.commit()
+        guard let last = targets.indices.last else { return nil }
+        return targets[last][current[last]]
     }
 
     private static func mouse(for view: MTKView) -> SIMD4<Float> {

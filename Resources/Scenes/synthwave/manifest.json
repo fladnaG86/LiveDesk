@@ -1,0 +1,12 @@
+{
+  "id": "0DD340EE-2534-5A22-9689-36158D6D7016",
+  "name": "Synthwave",
+  "passes": [
+    {
+      "source": "synthwave.metal",
+      "function": "synthwave"
+    }
+  ],
+  "usesAudio": false,
+  "usesMouse": false
+}

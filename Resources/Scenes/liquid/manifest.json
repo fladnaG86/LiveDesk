@@ -1,0 +1,12 @@
+{
+  "id": "D9D450AC-CBC1-574E-9545-4AA7D8C429F3",
+  "name": "Liquid",
+  "passes": [
+    {
+      "source": "liquid.metal",
+      "function": "liquid"
+    }
+  ],
+  "usesAudio": false,
+  "usesMouse": false
+}

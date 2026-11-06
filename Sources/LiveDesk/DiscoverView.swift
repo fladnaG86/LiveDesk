@@ -9,7 +9,7 @@ final class DiscoverModel {
     let client = CatalogClient()
     let downloads = DownloadManager()
 
-    var source: CatalogSource = .pexels
+    var source: CatalogSource = .official
     var query = ""
     private(set) var items: [CatalogItem] = []
     private(set) var loading = false
@@ -31,7 +31,11 @@ final class DiscoverModel {
     }
 
     func needsSetup(customURL: String?) -> Bool {
-        source.requiresKey ? (apiKey(for: source) ?? "").isEmpty : (customURL ?? "").isEmpty
+        switch source {
+        case .official: return false
+        case .custom: return (customURL ?? "").isEmpty
+        case .pexels, .pixabay: return (apiKey(for: source) ?? "").isEmpty
+        }
     }
 
     func reload(customURL: String?) {
@@ -57,7 +61,7 @@ final class DiscoverModel {
                 let known = Set(items.map(\.id))
                 items += result.filter { !known.contains($0.id) }
                 self.page += 1
-                hasMore = source != .custom && result.count >= CatalogClient.pageSize / 2
+                hasMore = !source.isCatalogFile && result.count >= CatalogClient.pageSize / 2
             } catch is CancellationError {
             } catch {
                 guard !Task.isCancelled else { return }
@@ -126,13 +130,15 @@ struct DiscoverView: View {
             .padding(.vertical, 6)
             .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
 
-            Menu {
-                Button("Cambia API key / indirizzo…") { forgetSetup() }
-            } label: {
-                Image(systemName: "key")
+            if discover.source != .official {
+                Menu {
+                    Button("Cambia API key / indirizzo…") { forgetSetup() }
+                } label: {
+                    Image(systemName: "key")
+                }
+                .menuStyle(.borderlessButton)
+                .frame(width: 32)
             }
-            .menuStyle(.borderlessButton)
-            .frame(width: 32)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
@@ -243,6 +249,8 @@ struct DiscoverView: View {
                 Link("Video forniti da Pexels", destination: URL(string: "https://www.pexels.com")!)
             case .pixabay:
                 Link("Video forniti da Pixabay", destination: URL(string: "https://pixabay.com")!)
+            case .official:
+                Text("Collezione originale LiveDesk · CC0")
             case .custom:
                 Text(model.store.state.customCatalogURL ?? "")
             }

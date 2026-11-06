@@ -1,0 +1,12 @@
+{
+  "id": "CEE81843-582B-526B-9D44-DA450D41CE15",
+  "name": "Nebula",
+  "passes": [
+    {
+      "source": "nebula.metal",
+      "function": "nebula"
+    }
+  ],
+  "usesAudio": false,
+  "usesMouse": false
+}

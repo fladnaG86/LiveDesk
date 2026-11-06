@@ -1,0 +1,12 @@
+{
+  "id": "A7777C54-E795-58BE-BCCF-B23C6D35F61A",
+  "name": "Bokeh",
+  "passes": [
+    {
+      "source": "bokeh.metal",
+      "function": "bokeh"
+    }
+  ],
+  "usesAudio": false,
+  "usesMouse": false
+}

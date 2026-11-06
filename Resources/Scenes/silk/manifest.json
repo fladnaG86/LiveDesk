@@ -1,0 +1,12 @@
+{
+  "id": "6C360A8F-298F-5E65-B2C8-5281F235588C",
+  "name": "Silk",
+  "passes": [
+    {
+      "source": "silk.metal",
+      "function": "silk"
+    }
+  ],
+  "usesAudio": false,
+  "usesMouse": false
+}
