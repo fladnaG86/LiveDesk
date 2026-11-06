@@ -24,10 +24,16 @@ struct LiveDeskApp: App {
             MenuContent(model: delegate.model)
         }
         Window("LiveDesk", id: "library") {
-            LibraryView(model: delegate.model)
-                .frame(minWidth: 760, minHeight: 520)
+            TabView {
+                LibraryView(model: delegate.model)
+                    .tabItem { Label("Libreria", systemImage: "square.grid.2x2") }
+                DiscoverView(model: delegate.model)
+                    .tabItem { Label("Scopri", systemImage: "sparkle.magnifyingglass") }
+            }
+            .frame(minWidth: 820, minHeight: 560)
         }
         .defaultSize(width: 980, height: 680)
+        .defaultLaunchBehavior(.presented)
         Settings {
             SettingsView(model: delegate.model)
         }

@@ -206,6 +206,26 @@ public final class LibraryStore {
         save()
     }
 
+    /// Records where a downloaded wallpaper came from.
+    public func annotate(id: UUID, title: String, credit: String?, sourcePage: String?, catalogID: String?) {
+        guard let index = state.wallpapers.firstIndex(where: { $0.id == id }) else { return }
+        state.wallpapers[index].title = title
+        state.wallpapers[index].credit = credit
+        state.wallpapers[index].sourcePage = sourcePage
+        state.wallpapers[index].catalogID = catalogID
+        save()
+    }
+
+    public func wallpaper(catalogID: String) -> Wallpaper? {
+        state.wallpapers.first { $0.catalogID == catalogID }
+    }
+
+    public func setCustomCatalogURL(_ value: String?) {
+        let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+        state.customCatalogURL = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        save()
+    }
+
     public func clearError() { lastError = nil }
 
     // MARK: Coding

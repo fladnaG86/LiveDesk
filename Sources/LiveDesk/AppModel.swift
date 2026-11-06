@@ -10,6 +10,7 @@ final class AppModel {
     let coordinator: PlayerCoordinator
     let thumbnails: ThumbnailCache
     let aerial: AerialInstaller
+    let discover = DiscoverModel()
 
     var message: String?
     var lockScreenStatus: AerialInstaller.Status = .idle
@@ -111,6 +112,26 @@ final class AppModel {
                     thumbnailVersion += 1
                 }
             }
+        }
+    }
+
+    // MARK: Catalog downloads
+
+    /// Downloads a catalog video into the library and optionally applies it to all screens.
+    func download(_ item: CatalogItem, apply applyNow: Bool) async {
+        let folder = store.root.appendingPathComponent("Downloads", isDirectory: true)
+        do {
+            let file = try await discover.downloads.download(item, to: folder)
+            defer { try? FileManager.default.removeItem(at: file) }
+            let wallpaper = try store.importItem(at: file)
+            store.annotate(id: wallpaper.id, title: item.title, credit: item.credit,
+                           sourcePage: item.pageURL?.absoluteString, catalogID: item.id)
+            generateThumbnails()
+            if applyNow { apply(wallpaper.id, screen: nil) }
+        } catch is CancellationError {
+        } catch let error as URLError where error.code == .cancelled {
+        } catch {
+            message = "\(item.title): \(error.localizedDescription)"
         }
     }
 

@@ -180,6 +180,13 @@ struct WallpaperCard: View {
                     set: { model.setOnLockScreen(item, $0) }
                 ))
             }
+            if let credit = item.credit {
+                Divider()
+                Text(credit)
+                if let page = item.sourcePage.flatMap(URL.init(string:)) {
+                    Button("Apri pagina originale") { NSWorkspace.shared.open(page) }
+                }
+            }
             if !item.isBuiltIn {
                 Divider()
                 Button("Mostra nel Finder") {

@@ -16,6 +16,11 @@ public struct Wallpaper: Codable, Identifiable, Hashable, Sendable {
     /// Only meaningful for videos: copy this wallpaper into the system Aerial catalog (Lock Screen).
     public var onLockScreen: Bool
     public var addedAt: Date
+    /// Author / source / license for downloaded items.
+    public var credit: String?
+    public var sourcePage: String?
+    /// CatalogItem.id this wallpaper was downloaded from.
+    public var catalogID: String?
 
     public init(
         id: UUID = UUID(),
@@ -44,6 +49,9 @@ public struct Wallpaper: Codable, Identifiable, Hashable, Sendable {
         isBuiltIn = try c.decodeIfPresent(Bool.self, forKey: .isBuiltIn) ?? false
         onLockScreen = try c.decodeIfPresent(Bool.self, forKey: .onLockScreen) ?? false
         addedAt = try c.decodeIfPresent(Date.self, forKey: .addedAt) ?? Date()
+        credit = try c.decodeIfPresent(String.self, forKey: .credit)
+        sourcePage = try c.decodeIfPresent(String.self, forKey: .sourcePage)
+        catalogID = try c.decodeIfPresent(String.self, forKey: .catalogID)
     }
 }
 
@@ -88,6 +96,7 @@ public struct LibraryState: Codable, Equatable, Sendable {
     public var settings = PlaybackSettings()
     public var userPaused = false
     public var installedAerialIDs: [UUID] = []
+    public var customCatalogURL: String?
 
     public init() {}
 
@@ -98,5 +107,6 @@ public struct LibraryState: Codable, Equatable, Sendable {
         settings = try c.decodeIfPresent(PlaybackSettings.self, forKey: .settings) ?? PlaybackSettings()
         userPaused = try c.decodeIfPresent(Bool.self, forKey: .userPaused) ?? false
         installedAerialIDs = try c.decodeIfPresent([UUID].self, forKey: .installedAerialIDs) ?? []
+        customCatalogURL = try c.decodeIfPresent(String.self, forKey: .customCatalogURL)
     }
 }
