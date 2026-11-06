@@ -1,0 +1,10 @@
+{
+  "id": "C33E2A7A-9C3D-4E4F-A051-2C3D4E5F6A03",
+  "name": "Ink",
+  "passes": [
+    { "source": "ink.metal", "function": "ink_sim" },
+    { "source": "ink.metal", "function": "ink_color" }
+  ],
+  "usesAudio": false,
+  "usesMouse": true
+}

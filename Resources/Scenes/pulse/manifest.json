@@ -1,0 +1,9 @@
+{
+  "id": "B22D1F6F-8B2C-4D3E-9F40-1B2C3D4E5F02",
+  "name": "Pulse",
+  "passes": [
+    { "source": "pulse.metal", "function": "pulse" }
+  ],
+  "usesAudio": true,
+  "usesMouse": false
+}

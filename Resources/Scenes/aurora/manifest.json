@@ -1,0 +1,9 @@
+{
+  "id": "A11C0E5E-7A1B-4C2D-8E3F-0A1B2C3D4E01",
+  "name": "Aurora",
+  "passes": [
+    { "source": "aurora.metal", "function": "aurora" }
+  ],
+  "usesAudio": false,
+  "usesMouse": true
+}
