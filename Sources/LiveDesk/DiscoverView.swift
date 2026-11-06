@@ -283,7 +283,7 @@ struct DiscoverCard: View {
                         Rectangle().fill(.quaternary)
                     }
                     if hovering, let preview = item.previewURL {
-                        LoopingVideoView(url: preview).transition(.opacity)
+                        HoverPreview(remote: preview).transition(.opacity)
                     }
                 }
                 .frame(height: 150)
@@ -366,6 +366,23 @@ struct DiscoverCard: View {
     static func duration(_ seconds: Double) -> String {
         let s = Int(seconds.rounded())
         return String(format: "%d:%02d", s / 60, s % 60)
+    }
+}
+
+/// Fetches the preview into the local cache, then plays it.
+struct HoverPreview: View {
+    let remote: URL
+    @State private var local: URL?
+
+    var body: some View {
+        ZStack {
+            if let local {
+                LoopingVideoView(url: local)
+            } else {
+                ProgressView().controlSize(.small)
+            }
+        }
+        .task(id: remote) { local = try? await PreviewCache.shared.localFile(for: remote) }
     }
 }
 

@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import Testing
 @testable import LiveDeskKit
@@ -208,5 +209,27 @@ struct DownloadIntegrationTests {
         #expect(file.lastPathComponent == "Big Buck Bunny _ test.mp4")
         #expect(size > 100_000)
         #expect(manager.states[item.id] == nil)
+    }
+}
+
+/// Real network: the published official collection. Run with TEST_RUNNER_LIVEDESK_NET=1.
+@MainActor
+struct OfficialCollectionIntegrationTests {
+    @Test(.enabled(if: ProcessInfo.processInfo.environment["LIVEDESK_NET"] == "1"))
+    func fetchPreviewAndDownload() async throws {
+        let items = try await CatalogClient().fetch(source: .official, query: nil, page: 1, apiKey: nil, customURL: nil)
+        #expect(items.count == 10)
+        let item = try #require(items.min { $0.title < $1.title }) // smallest-ish, deterministic
+        let cache = PreviewCache(folder: makeTempDir())
+        let localPreview = try await cache.localFile(for: try #require(item.previewURL))
+        #expect(localPreview.pathExtension == "mp4")
+        #expect(try await AVURLAsset(url: localPreview).load(.isPlayable))
+        #expect(try await cache.localFile(for: item.previewURL!) == localPreview) // cached
+        let file = try await DownloadManager().download(item, to: makeTempDir())
+        #expect(file.pathExtension == "mov")
+        let local = AVURLAsset(url: file)
+        #expect(try await local.load(.isPlayable))
+        let size = try await local.loadTracks(withMediaType: .video).first!.load(.naturalSize)
+        #expect(size == CGSize(width: 3840, height: 2160))
     }
 }
