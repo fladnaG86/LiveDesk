@@ -16,6 +16,16 @@ Live wallpaper app for macOS (26+), written from scratch in Swift / SwiftUI / Me
   `~/Library/Application Support/LiveDesk/AerialBackups/`. Turning the option off removes everything LiveDesk added.
 - Menu bar control, library window with drag & drop, rotation timer, launch at login.
 
+- **Discover**: browse, preview and download free-licensed videos from Pexels or Pixabay (free API keys,
+  stored in the Keychain) or from your own `catalog.json`. Author, source and license are kept with each download.
+
+## Install
+
+1. Download `LiveDesk-<version>.zip` from [Releases](../../releases), unzip, move `LiveDesk.app` to `/Applications`.
+2. The app is ad-hoc signed (not notarized), so the first launch is blocked by Gatekeeper. Either right-click → Open,
+   or run `xattr -dr com.apple.quarantine /Applications/LiveDesk.app`.
+3. LiveDesk lives in the menu bar (✨). Requires macOS 26 or later, Apple Silicon or Intel.
+
 ## Build
 
 ```sh
