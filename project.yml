@@ -37,8 +37,8 @@ targets:
       path: Sources/LiveDesk/Info.plist
       properties:
         CFBundleDisplayName: LiveDesk
-        CFBundleShortVersionString: "0.2.0"
-        CFBundleVersion: "2"
+        CFBundleShortVersionString: "0.2.1"
+        CFBundleVersion: "3"
         LSUIElement: true
         LSApplicationCategoryType: public.app-category.lifestyle
         NSAudioCaptureUsageDescription: "LiveDesk ascolta l'audio del Mac solo per far reagire le scene animate alla musica. Niente viene registrato o inviato."
