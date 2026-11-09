@@ -104,6 +104,12 @@ struct LibraryView: View {
                 Label("In riproduzione", systemImage: "play.circle")
             }
             Spacer()
+            if let status = model.optimizeStatus {
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.small)
+                    Text(status)
+                }
+            }
             lockScreenStatus
         }
         .font(.callout)

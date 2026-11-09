@@ -33,6 +33,7 @@ final class AppModel {
     func start() {
         coordinator.start()
         generateThumbnails()
+        optimizeVideos()
         if store.settings.lockScreenSync {
             Task { await repairLockScreenIfNeeded() }
         }
@@ -65,6 +66,7 @@ final class AppModel {
             }
         }
         generateThumbnails()
+        optimizeVideos()
         if let lastImported, urls.count == 1 { apply(lastImported.id, screen: nil) }
     }
 
@@ -107,6 +109,58 @@ final class AppModel {
         coordinator.settingsChanged()
     }
 
+    // MARK: High-frame-rate videos
+
+    /// Footer text while a playback copy is being made.
+    var optimizeStatus: String?
+    private var optimizing = false
+    private static let maxPlaybackFPS = 60.0
+
+    /// Makes 60 fps playback copies of videos above 60 fps, one at a time, then swaps the
+    /// running players to the copy. Originals stay untouched (the Lock Screen uses them).
+    func optimizeVideos() {
+        guard !optimizing else { return }
+        optimizing = true
+        Task {
+            defer { optimizing = false; optimizeStatus = nil }
+            var failed: Set<UUID> = []
+            while let item = await nextVideoToOptimize(skipping: failed) {
+                let source = store.url(for: item)
+                let copy = store.playbackCopyURL(for: item)
+                let temp = copy.deletingLastPathComponent().appendingPathComponent(".\(item.id.uuidString).tmp.mov")
+                let title = item.title
+                optimizeStatus = "Ottimizzo «\(title)» a 60 fps…"
+                do {
+                    try await FrameRateLimiter.transcode(source: source, to: temp, maxFPS: Self.maxPlaybackFPS) { p in
+                        Task { @MainActor [weak self] in
+                            self?.optimizeStatus = "Ottimizzo «\(title)» a 60 fps… \(Int(p * 100))%"
+                        }
+                    }
+                    try? FileManager.default.removeItem(at: copy)
+                    try FileManager.default.moveItem(at: temp, to: copy)
+                    if store.wallpaper(id: item.id) == nil {
+                        try? FileManager.default.removeItem(at: copy) // removed meanwhile
+                    } else {
+                        coordinator.reload(wallpaperID: item.id)
+                    }
+                } catch {
+                    try? FileManager.default.removeItem(at: temp)
+                    failed.insert(item.id)
+                }
+            }
+        }
+    }
+
+    private func nextVideoToOptimize(skipping: Set<UUID>) async -> Wallpaper? {
+        for item in store.wallpapers where item.kind == .video && !item.isBuiltIn && !skipping.contains(item.id) {
+            if FileManager.default.fileExists(atPath: store.playbackCopyURL(for: item).path) { continue }
+            if (try? await FrameRateLimiter.needsLimiting(store.url(for: item), maxFPS: Self.maxPlaybackFPS)) == true {
+                return item
+            }
+        }
+        return nil
+    }
+
     private func generateThumbnails() {
         // Videos/images first (cheap), then scenes (Metal render, off the main thread).
         let items = store.wallpapers.filter { $0.kind != .scene } + store.wallpapers.filter { $0.kind == .scene }
@@ -131,6 +185,7 @@ final class AppModel {
             store.annotate(id: wallpaper.id, title: item.title, credit: item.credit,
                            sourcePage: item.pageURL?.absoluteString, catalogID: item.id)
             generateThumbnails()
+            optimizeVideos()
             if applyNow { apply(wallpaper.id, screen: nil) }
         } catch is CancellationError {
         } catch let error as URLError where error.code == .cancelled {

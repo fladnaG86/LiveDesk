@@ -34,28 +34,24 @@ public protocol WallpaperContent: NSView {
 
 // MARK: Video
 
+/// Shows a video from a `SharedVideoPlayer`: screens with the same file share one decoder.
 public final class VideoContentView: NSView, WallpaperContent {
-    private let player = AVQueuePlayer()
-    private var looper: AVPlayerLooper?
+    private let pool: VideoPlayerPool
+    private var shared: SharedVideoPlayer?
     private let playerLayer = AVPlayerLayer()
-    private var rate: Float = 1
-    private var playing = false
 
-    public init(url: URL) {
+    public init(url: URL, pool: VideoPlayerPool) {
+        self.pool = pool
         super.init(frame: .zero)
         wantsLayer = true
         layer?.backgroundColor = NSColor.black.cgColor
-        player.isMuted = true
-        player.preventsDisplaySleepDuringVideoPlayback = false
-        player.allowsExternalPlayback = false
-        playerLayer.player = player
+        let shared = pool.acquire(url)
+        self.shared = shared
+        playerLayer.player = shared.player
         playerLayer.videoGravity = .resizeAspectFill
         playerLayer.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
         playerLayer.frame = bounds
         layer?.addSublayer(playerLayer)
-        let item = AVPlayerItem(url: url)
-        item.preferredForwardBufferDuration = 2
-        looper = AVPlayerLooper(player: player, templateItem: item)
     }
 
     @available(*, unavailable)
@@ -67,27 +63,17 @@ public final class VideoContentView: NSView, WallpaperContent {
     }
 
     public func setPlaying(_ playing: Bool) {
-        self.playing = playing
-        if playing {
-            player.defaultRate = rate
-            player.play()
-        } else {
-            player.pause()
-        }
+        shared?.setPlaying(playing, owner: self)
     }
 
     public func apply(settings: PlaybackSettings) {
-        rate = Float(min(4, max(0.1, settings.speed)))
-        player.defaultRate = rate
-        if playing { player.rate = rate }
+        shared?.setRate(Float(min(4, max(0.1, settings.speed))))
     }
 
     public func teardown() {
-        player.pause()
-        looper?.disableLooping()
-        looper = nil
-        player.removeAllItems()
         playerLayer.player = nil
+        if let shared { pool.release(shared, owner: self) }
+        shared = nil
     }
 }
 

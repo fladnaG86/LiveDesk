@@ -98,6 +98,25 @@ public final class LibraryStore {
         return mediaFolder.appendingPathComponent(wallpaper.relativePath)
     }
 
+    /// Lower-frame-rate copy made by `FrameRateLimiter` next to the original (which is kept,
+    /// e.g. for the Lock Screen catalog).
+    public nonisolated static func playbackCopyURL(id: UUID, mediaFolder: URL) -> URL {
+        mediaFolder.appendingPathComponent("\(id.uuidString).playback.mov")
+    }
+
+    public func playbackCopyURL(for wallpaper: Wallpaper) -> URL {
+        Self.playbackCopyURL(id: wallpaper.id, mediaFolder: mediaFolder)
+    }
+
+    /// File to play on the desktop: the playback copy when present, else the original.
+    public func playbackURL(for wallpaper: Wallpaper) -> URL {
+        if wallpaper.kind == .video, !wallpaper.isBuiltIn {
+            let copy = playbackCopyURL(for: wallpaper)
+            if fm.fileExists(atPath: copy.path) { return copy }
+        }
+        return url(for: wallpaper)
+    }
+
     /// Wallpaper for a screen: its own assignment, else the all-screens one. Ignores dangling ids.
     public func wallpaperID(forScreen key: String) -> UUID? {
         for candidate in [state.assignments[key], state.assignments[LibraryState.allScreensKey]] {
@@ -153,6 +172,7 @@ public final class LibraryStore {
         guard let index = state.wallpapers.firstIndex(where: { $0.id == id }) else { return }
         let item = state.wallpapers.remove(at: index)
         try? fm.removeItem(at: url(for: item))
+        try? fm.removeItem(at: playbackCopyURL(for: item))
         state.assignments = state.assignments.filter { $0.value != id }
         save()
     }

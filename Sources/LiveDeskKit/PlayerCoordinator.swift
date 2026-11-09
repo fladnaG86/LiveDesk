@@ -35,6 +35,7 @@ public final class PlayerCoordinator {
 
     private let store: LibraryStore
     public let audio = SystemAudioTap()
+    private let videoPool = VideoPlayerPool()
     private var players: [String: Player] = [:]
     public private(set) var conditions = PlaybackConditions()
     private var observers: [NSObjectProtocol] = []
@@ -152,12 +153,20 @@ public final class PlayerCoordinator {
         refreshConditions()
     }
 
+    /// Recreates the windows showing `id` (e.g. after its playback file changed).
+    public func reload(wallpaperID id: UUID) {
+        let keys = players.filter { $0.value.wallpaperID == id }.map(\.key)
+        guard !keys.isEmpty else { return }
+        for key in keys { destroy(key) }
+        reconcile()
+    }
+
     private func create(key: String, screen: NSScreen, wallpaper: Wallpaper) {
-        let url = store.url(for: wallpaper)
+        let url = store.playbackURL(for: wallpaper)
         let content: WallpaperContent
         switch wallpaper.kind {
         case .video:
-            content = VideoContentView(url: url)
+            content = VideoContentView(url: url, pool: videoPool)
         case .image:
             content = ImageContentView(url: url)
         case .scene:
