@@ -66,7 +66,8 @@ struct LibraryView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(maxWidth: 340)
+            .fixedSize()
+            .layoutPriority(1)
 
             Spacer()
 

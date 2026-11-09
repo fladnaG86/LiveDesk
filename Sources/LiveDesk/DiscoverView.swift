@@ -110,7 +110,10 @@ struct DiscoverView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            .frame(maxWidth: 380)
+            // Keep the segments at their natural width: the greedy search field
+            // below would otherwise squeeze them and draw over them.
+            .fixedSize()
+            .layoutPriority(1)
 
             HStack {
                 Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
@@ -128,6 +131,7 @@ struct DiscoverView: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
+            .frame(minWidth: 180, maxWidth: .infinity)
             .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
 
             if discover.source != .official {
