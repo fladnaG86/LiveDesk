@@ -41,6 +41,15 @@ public final class PlayerCoordinator {
     private var pollTimer: Timer?
     private var rotationTimer: Timer?
     private var audioRunning = false
+    private var rotationMinutes = 0
+    private var lastSnapshot: StateSnapshot?
+
+    /// What the UI shows; `onStateChange` fires only when this changes.
+    struct StateSnapshot: Equatable {
+        var conditions: PlaybackConditions
+        var wallpapers: [String: UUID]
+        var playing: [String: Bool]
+    }
     private let log = Logger(subsystem: "dev.livedesk", category: "players")
 
     public var onStateChange: (() -> Void)?
@@ -179,7 +188,8 @@ public final class PlayerCoordinator {
 
     public func settingsChanged() {
         for player in players.values { player.content.apply(settings: store.settings) }
-        updateRotationTimer()
+        // Restart the rotation countdown only when its interval changed, not on every slider move.
+        if store.settings.rotationMinutes != rotationMinutes { updateRotationTimer() }
         applyPlayback()
     }
 
@@ -216,7 +226,14 @@ public final class PlayerCoordinator {
             if play, let scene = player.content as? SceneContentView, scene.usesAudio { anyAudioScene = true }
         }
         if anyAudioScene && store.settings.audioReactive { startAudio() } else { stopAudio() }
-        onStateChange?()
+        // Called every 2 s by the poll timer: only notify the UI when something visible changed.
+        let snapshot = StateSnapshot(conditions: conditions,
+                                     wallpapers: players.mapValues(\.wallpaperID),
+                                     playing: players.mapValues(\.playing))
+        if snapshot != lastSnapshot {
+            lastSnapshot = snapshot
+            onStateChange?()
+        }
     }
 
     private func startAudio() {
@@ -235,6 +252,7 @@ public final class PlayerCoordinator {
         rotationTimer?.invalidate()
         rotationTimer = nil
         let minutes = store.settings.rotationMinutes
+        rotationMinutes = minutes
         guard minutes > 0 else { return }
         rotationTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(minutes * 60), repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {

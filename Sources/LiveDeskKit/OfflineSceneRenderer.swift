@@ -40,6 +40,77 @@ public enum OfflineRenderError: Error, LocalizedError {
 /// Renders a scene to a looping HEVC QuickTime movie. Meant for stateless scenes:
 /// feedback scenes (that read their own previous frame) do not survive the crossfade time jump.
 public enum OfflineSceneRenderer {
+    /// Renders one frame of a scene as an sRGB image (for thumbnails). The scene runs from
+    /// t = 0 up to `time` so feedback scenes, which build on their previous frame, settle first.
+    public static func renderStill(folder: URL, width: Int, height: Int,
+                                   time: Double = 4, fps: Double = 15) throws -> CGImage {
+        guard let device = MTLCreateSystemDefaultDevice() else { throw SceneRendererError.noDevice }
+        let manifest = try SceneManifest.load(from: folder)
+        let renderer = try SceneRenderer(folder: folder, manifest: manifest, device: device, viewPixelFormat: .bgra8Unorm)
+
+        let library = try device.makeLibrary(source: SceneShaderHeader.source, options: nil)
+        let pd = MTLRenderPipelineDescriptor()
+        pd.vertexFunction = library.makeFunction(name: "ld_vertex")
+        pd.fragmentFunction = library.makeFunction(name: "ld_present")
+        pd.colorAttachments[0].pixelFormat = .bgra8Unorm
+        let present = try device.makeRenderPipelineState(descriptor: pd)
+
+        let sd = MTLSamplerDescriptor()
+        sd.minFilter = .linear
+        sd.magFilter = .linear
+        guard let sampler = device.makeSamplerState(descriptor: sd) else { throw OfflineRenderError.metal("sampler") }
+
+        let td = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm, width: width, height: height, mipmapped: false)
+        td.usage = [.renderTarget, .shaderRead]
+        td.storageMode = device.hasUnifiedMemory ? .shared : .managed
+        guard let target = device.makeTexture(descriptor: td) else { throw OfflineRenderError.metal("texture") }
+
+        let size = CGSize(width: width, height: height)
+        let dt = 1 / fps
+        let frames = max(1, Int((time * fps).rounded()))
+        for i in 0..<frames {
+            try autoreleasepool {
+                guard let cb = renderer.makeCommandBuffer(),
+                      let out = renderer.encodePasses(cb, drawableSize: size, time: Double(i) * dt, dt: dt, frameIndex: i) else {
+                    throw OfflineRenderError.metal("render")
+                }
+                if i == frames - 1 {
+                    let rp = MTLRenderPassDescriptor()
+                    rp.colorAttachments[0].texture = target
+                    rp.colorAttachments[0].loadAction = .dontCare
+                    rp.colorAttachments[0].storeAction = .store
+                    if let e = cb.makeRenderCommandEncoder(descriptor: rp) {
+                        e.setRenderPipelineState(present)
+                        e.setFragmentTexture(out, index: 0)
+                        e.setFragmentSamplerState(sampler, index: 0)
+                        e.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+                        e.endEncoding()
+                    }
+                    if !device.hasUnifiedMemory, let blit = cb.makeBlitCommandEncoder() {
+                        blit.synchronize(resource: target)
+                        blit.endEncoding()
+                    }
+                }
+                cb.commit()
+                cb.waitUntilCompleted()
+                if let error = cb.error { throw OfflineRenderError.metal(error.localizedDescription) }
+            }
+        }
+
+        let bytesPerRow = width * 4
+        var pixels = [UInt8](repeating: 0, count: bytesPerRow * height)
+        target.getBytes(&pixels, bytesPerRow: bytesPerRow, from: MTLRegionMake2D(0, 0, width, height), mipmapLevel: 0)
+        let info = CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.noneSkipFirst.rawValue
+        guard let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let provider = CGDataProvider(data: Data(pixels) as CFData),
+              let image = CGImage(width: width, height: height, bitsPerComponent: 8, bitsPerPixel: 32,
+                                  bytesPerRow: bytesPerRow, space: space, bitmapInfo: CGBitmapInfo(rawValue: info),
+                                  provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent) else {
+            throw OfflineRenderError.metal("image")
+        }
+        return image
+    }
+
     public static func render(folder: URL, to output: URL, options: OfflineRenderOptions,
                               progress: ((Double) -> Void)? = nil) throws {
         guard let device = MTLCreateSystemDefaultDevice() else { throw SceneRendererError.noDevice }

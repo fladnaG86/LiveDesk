@@ -24,11 +24,13 @@ struct LiveDeskApp: App {
             MenuContent(model: delegate.model)
         }
         Window("LiveDesk", id: "library") {
-            TabView {
+            TabView(selection: Bindable(delegate.model).selectedTab) {
                 LibraryView(model: delegate.model)
                     .tabItem { Label("Libreria", systemImage: "square.grid.2x2") }
+                    .tag(AppModel.Tab.library)
                 DiscoverView(model: delegate.model)
                     .tabItem { Label("Scopri", systemImage: "sparkle.magnifyingglass") }
+                    .tag(AppModel.Tab.discover)
             }
             .frame(minWidth: 820, minHeight: 560)
         }

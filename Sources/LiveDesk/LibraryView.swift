@@ -130,12 +130,34 @@ struct LibraryView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "sparkles.tv").font(.system(size: 48)).foregroundStyle(.secondary)
-            Text("Trascina qui video, immagini o cartelle di scene").font(.title3)
-            Text("Formati: .mov, .mp4, .m4v, immagini, cartelle con manifest.json").foregroundStyle(.secondary)
+        let text = Self.emptyText(for: filter)
+        return VStack(spacing: 12) {
+            Image(systemName: text.icon).font(.system(size: 48)).foregroundStyle(.secondary)
+            Text(text.title).font(.title3)
+            Text(text.hint).foregroundStyle(.secondary)
+            if filter == .video {
+                Button("Sfoglia Scopri") { model.selectedTab = .discover }
+                    .buttonStyle(.link)
+            }
         }
         .frame(maxWidth: .infinity, minHeight: 360)
+    }
+
+    private static func emptyText(for filter: WallpaperKind?) -> (icon: String, title: String, hint: String) {
+        switch filter {
+        case .video:
+            return ("film", "Nessun video",
+                    "Trascina qui file .mov, .mp4 o .m4v, oppure scaricane uno da Scopri.")
+        case .image:
+            return ("photo", "Nessuna immagine",
+                    "Trascina qui una foto (JPEG, PNG, HEIC) per usarla come sfondo fisso.")
+        case .scene:
+            return ("sparkles", "Nessuna scena",
+                    "Trascina qui una cartella di scena con manifest.json.")
+        case nil:
+            return ("sparkles.tv", "Trascina qui video, immagini o cartelle di scene",
+                    "Formati: .mov, .mp4, .m4v, immagini, cartelle con manifest.json")
+        }
     }
 }
 
@@ -148,10 +170,14 @@ struct WallpaperCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack(alignment: .topTrailing) {
-                preview
-                    .frame(height: 140)
+                // Fixed-size container: a .fill image would otherwise report its
+                // natural width and spill over neighbouring grid columns.
+                Color.clear
                     .frame(maxWidth: .infinity)
+                    .frame(height: 140)
+                    .overlay { preview }
                     .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .contentShape(RoundedRectangle(cornerRadius: 10))
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
                             .strokeBorder(model.isActive(item.id) ? Color.accentColor : Color.clear, lineWidth: 3)
@@ -225,6 +251,6 @@ struct WallpaperCard: View {
 
     private var gradient: [Color] {
         let palettes: [[Color]] = [[.purple, .blue], [.teal, .indigo], [.orange, .pink], [.mint, .cyan]]
-        return palettes[abs(item.id.hashValue) % palettes.count]
+        return palettes[item.paletteIndex(count: palettes.count)]
     }
 }

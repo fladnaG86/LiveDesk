@@ -276,19 +276,22 @@ struct DiscoverCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack(alignment: .bottomLeading) {
-                ZStack {
-                    AsyncImage(url: item.thumbnailURL) { image in
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Rectangle().fill(.quaternary)
+                Color.clear
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 150)
+                    .overlay {
+                        ZStack {
+                            AsyncImage(url: item.thumbnailURL) { image in
+                                image.resizable().aspectRatio(contentMode: .fill)
+                            } placeholder: {
+                                Rectangle().fill(.quaternary)
+                            }
+                            if hovering, let preview = item.previewURL {
+                                HoverPreview(remote: preview).transition(.opacity)
+                            }
+                        }
                     }
-                    if hovering, let preview = item.previewURL {
-                        HoverPreview(remote: preview).transition(.opacity)
-                    }
-                }
-                .frame(height: 150)
-                .frame(maxWidth: .infinity)
-                .clipped()
+                    .clipped()
 
                 HStack(spacing: 6) {
                     tag(item.resolutionLabel)

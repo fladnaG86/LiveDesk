@@ -6,6 +6,18 @@ public enum WallpaperKind: String, Codable, Sendable, CaseIterable {
     case image
 }
 
+public extension Wallpaper {
+    /// Index into a palette of `count` colors, stable across launches (derived from the UUID bytes,
+    /// not from `hashValue`, which is seeded per process).
+    func paletteIndex(count: Int) -> Int {
+        guard count > 0 else { return 0 }
+        let u = id.uuid
+        let sum = [u.0, u.1, u.2, u.3, u.4, u.5, u.6, u.7, u.8, u.9, u.10, u.11, u.12, u.13, u.14, u.15]
+            .reduce(0) { $0 &+ Int($1) }
+        return sum % count
+    }
+}
+
 public struct Wallpaper: Codable, Identifiable, Hashable, Sendable {
     public var id: UUID
     public var title: String

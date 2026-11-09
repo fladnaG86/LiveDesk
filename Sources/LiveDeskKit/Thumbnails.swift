@@ -31,6 +31,8 @@ public enum Thumbnails {
 public final class ThumbnailCache {
     public let folder: URL
     private var inFlight: Set<UUID> = []
+    /// Decoded images, so SwiftUI re-renders do not hit the disk.
+    private var memory: [UUID: NSImage] = [:]
 
     public init(root: URL) {
         folder = root.appendingPathComponent("Thumbs", isDirectory: true)
@@ -39,7 +41,10 @@ public final class ThumbnailCache {
     public func url(for id: UUID) -> URL { folder.appendingPathComponent("\(id.uuidString).png") }
 
     public func cachedImage(for id: UUID) -> NSImage? {
-        NSImage(contentsOf: url(for: id))
+        if let image = memory[id] { return image }
+        guard let image = NSImage(contentsOf: url(for: id)) else { return nil }
+        memory[id] = image
+        return image
     }
 
     /// Generates the thumbnail when missing. Returns true when a new file was written.
@@ -60,11 +65,17 @@ public final class ThumbnailCache {
                   ] as CFDictionary) else { return false }
             return (try? Thumbnails.writePNG(image, to: out)) != nil
         case .scene:
-            return false
+            // Metal render off the main thread; 16:9 like the card.
+            let ok = await Task.detached(priority: .utility) {
+                guard let image = try? OfflineSceneRenderer.renderStill(folder: source, width: 640, height: 360) else { return false }
+                return (try? Thumbnails.writePNG(image, to: out)) != nil
+            }.value
+            return ok
         }
     }
 
     public func remove(id: UUID) {
+        memory[id] = nil
         try? FileManager.default.removeItem(at: url(for: id))
     }
 }

@@ -12,6 +12,9 @@ final class AppModel {
     let aerial: AerialInstaller
     let discover = DiscoverModel()
 
+    enum Tab: Hashable { case library, discover }
+
+    var selectedTab: Tab = .library
     var message: String?
     var lockScreenStatus: AerialInstaller.Status = .idle
     var thumbnailVersion = 0
@@ -105,7 +108,8 @@ final class AppModel {
     }
 
     private func generateThumbnails() {
-        let items = store.wallpapers.filter { $0.kind != .scene }
+        // Videos/images first (cheap), then scenes (Metal render, off the main thread).
+        let items = store.wallpapers.filter { $0.kind != .scene } + store.wallpapers.filter { $0.kind == .scene }
         Task {
             for item in items {
                 if await thumbnails.ensure(for: item, source: store.url(for: item)) {
