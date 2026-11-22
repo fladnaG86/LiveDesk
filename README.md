@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/icon.png" width="128" alt="LiveDesk icon"></p>
+
 # LiveDesk
 
 Live wallpaper app for macOS (26+), written from scratch in Swift / SwiftUI / Metal.
